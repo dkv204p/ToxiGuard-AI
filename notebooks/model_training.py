@@ -3,6 +3,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, precision_score, recall_score, average_precision_score, confusion_matrix
+import shap
+import matplotlib.pyplot as plt
 from xgboost import XGBClassifier
 import joblib
 
@@ -82,3 +84,31 @@ print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_xgb))
 joblib.dump(xgb, 'models/toxiguard_model.pkl')
 
 print("\nModel saved successfully ✅")
+
+print("\nGenerating global SHAP summary plot...")
+explainer = shap.TreeExplainer(xgb)
+shap_values = explainer.shap_values(X_test)
+
+if isinstance(shap_values, list):
+    sv = shap_values[1]
+else:
+    sv = shap_values
+
+feature_names = ['MolWt', 'LogP', 'H-Donors', 'H-Acceptors', 'TPSA'] + [f'FP_{i}' for i in range(2048)] + [f'MACCS_{i}' for i in range(167)]
+
+plt.figure(figsize=(10, 6))
+import matplotlib as mpl
+mpl.rcParams.update({"text.color": "white", "axes.labelcolor": "white", "xtick.color": "white", "ytick.color": "white"})
+shap.summary_plot(sv, X_test, feature_names=feature_names, show=False)
+
+# Force SHAP axis text to be white
+ax = plt.gca()
+ax.tick_params(colors='white')
+ax.xaxis.label.set_color('white')
+ax.yaxis.label.set_color('white')
+for spine in ax.spines.values():
+    spine.set_edgecolor('white')
+
+plt.savefig('app/static/shap_summary.png', bbox_inches='tight', transparent=True)
+plt.close()
+print("Global SHAP summary plot saved ✅")
